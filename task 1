@@ -1,0 +1,104 @@
+import hashlib
+import os
+import time
+
+def calculate_hash(filepath, hash_algorithm="sha256"):
+    """
+    Calculates the hash value of a file using the specified algorithm.
+
+    Args:
+        filepath (str): The path to the file.
+        hash_algorithm (str): The hashing algorithm to use (e.g., "md5", "sha256", "sha512").  Defaults to "sha256".
+
+    Returns:
+        str: The hexadecimal representation of the hash value, or None if the file does not exist.
+    """
+    if not os.path.exists(filepath):
+        print(f"Error: File not found: {filepath}")
+        return None
+
+    try:
+        # Open the file in binary read mode
+        with open(filepath, "rb") as f:
+            # Select the hashing algorithm
+            if hash_algorithm == "md5":
+                hasher = hashlib.md5()
+            elif hash_algorithm == "sha256":
+                hasher = hashlib.sha256()
+            elif hash_algorithm == "sha512":
+                hasher = hashlib.sha512()
+            else:
+                print("Error: Invalid hashing algorithm. Using SHA256 as default.")
+                hasher = hashlib.sha256()
+
+            # Read the file in chunks to handle large files efficiently
+            while chunk := f.read(4096):  # Read 4KB chunks
+                hasher.update(chunk)
+
+        # Return the hexadecimal representation of the hash
+        return hasher.hexdigest()
+
+    except Exception as e:
+        print(f"Error calculating hash: {e}")
+        return None
+
+
+def monitor_file(filepath, hash_algorithm="sha256", interval=60):
+    """
+    Monitors a file for changes by periodically calculating and comparing its hash value.
+
+    Args:
+        filepath (str): The path to the file to monitor.
+        hash_algorithm (str): The hashing algorithm to use (e.g., "md5", "sha256"). Defaults to "sha256".
+        interval (int): The time interval (in seconds) between hash checks. Defaults to 60 seconds.
+    """
+    if not os.path.exists(filepath):
+        print(f"Error: File not found: {filepath}")
+        return
+
+    previous_hash = calculate_hash(filepath, hash_algorithm)
+    if previous_hash is None:
+        print("Failed to get initial hash. Monitoring cannot proceed.")
+        return
+
+    print(f"Monitoring file: {filepath} (Hashing algorithm: {hash_algorithm})")
+    print(f"Initial hash: {previous_hash}")
+
+    try:
+        while True:
+            time.sleep(interval)  # Wait for the specified interval
+
+            current_hash = calculate_hash(filepath, hash_algorithm)
+            if current_hash is None:
+                print("Failed to calculate current hash. Skipping comparison.")
+                continue
+
+            if current_hash != previous_hash:
+                print("File has been modified!")
+                print(f"Previous hash: {previous_hash}")
+                print(f"Current hash: {current_hash}")
+                previous_hash = current_hash  # Update the previous hash
+            else:
+                print("File integrity check passed. No changes detected.")
+
+    except KeyboardInterrupt:
+        print("\nMonitoring stopped.")
+    except Exception as e:  # Catch any other potential errors in the monitoring loop
+        print(f"An unexpected error occurred: {e}")
+
+
+if __name__ == "__main__":
+    file_to_monitor = "example.txt"  # Replace with the path to your file
+
+    # Create example.txt if it doesn't exist, and write some initial content
+    if not os.path.exists(file_to_monitor):
+        try:
+            with open(file_to_monitor, "w") as f:
+                f.write("This is an example file for integrity checking.\n")
+        except Exception as e:
+            print(f"Error creating example file: {e}")
+            exit()  # Exit if the example file cannot be created
+
+
+    # Example usage:  Monitor the file every 30 seconds using SHA256
+    monitor_file(file_to_monitor, hash_algorithm="sha256", interval=30)
